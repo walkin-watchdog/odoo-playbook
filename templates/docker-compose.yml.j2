@@ -1,0 +1,105 @@
+services:
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8069/web/database/selector"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+    restart: always
+    networks:
+      - odoo-network
+    expose: ["8069", "8070", "8071", "8072"]
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - ./config:/etc/odoo
+      - ./addons:/mnt/extra-addons
+      - ./enterprise:/mnt/enterprise
+    environment:
+      - PASSWORD_FILE=/run/secrets/postgresql_password
+      - VIRTUAL_PORT=8069
+      - VIRTUAL_HOST={{ actual_domain }},www.{{ actual_domain }}
+      - LETSENCRYPT_HOST={{ actual_domain }},www.{{ actual_domain }}
+      - LETSENCRYPT_EMAIL={{ letsencrypt_email }}
+    secrets:
+      - source: postgresql_password
+        mode: 0400
+
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:latest
+    restart: unless-stopped
+    labels:
+      - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy"
+    ports: ["80:80", "443:443"]
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      - ./nginx-proxy/nginx.conf:/etc/nginx/conf.d/nginx.conf:ro
+      - ./nginx-proxy/cors.conf:/etc/nginx/cors.conf:ro
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - html:/usr/share/nginx/html
+      - vhost:/etc/nginx/vhost.d
+      - acme:/etc/acme.sh
+      - ./certs:/etc/nginx/certs
+      - ./acme-challenge:/usr/share/nginx/html:ro
+    networks:
+      - odoo-network
+    environment:
+      - DEFAULT_HOST={{ actual_domain }}
+      - LETSENCRYPT_HOST={{ actual_domain }},www.{{ actual_domain }}
+      - LETSENCRYPT_EMAIL={{ letsencrypt_email }}
+      - DEFAULT_PORT=8069
+      - SSL_POLICY=Mozilla-Intermediate
+
+  letsencrypt:
+    image: nginxproxy/acme-companion
+    restart: unless-stopped
+    volumes:
+      - ./certs:/etc/nginx/certs:rw
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./acme-challenge:/usr/share/nginx/html
+    depends_on:
+      - nginx-proxy
+      - web
+    environment:
+      - DEFAULT_EMAIL={{ letsencrypt_email }}
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgresql_password
+      - POSTGRES_USER=odoo
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    networks:
+      - odoo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data/pgdata
+    secrets:
+      - source: postgresql_password
+        mode: 0400
+volumes:
+  odoo-web-data:
+  odoo-db-data:
+  html:
+  vhost:
+  acme:
+
+secrets:
+  postgresql_password:
+    file: odoo_pg_pass
+
+networks:
+  odoo-network:
+    name: odoo-network
+    driver: bridge

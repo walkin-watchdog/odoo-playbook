@@ -1,0 +1,2 @@
+[servers]
+hostname ansible_host=12.34.56.78 ansible_user=root

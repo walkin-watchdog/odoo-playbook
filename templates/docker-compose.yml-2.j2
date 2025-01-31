@@ -1,0 +1,64 @@
+services:
+  web-test:
+    build: .
+    depends_on:
+      db-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8069/web/database/selector"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+    restart: always
+    networks:
+      - odoo-network
+      - odoo-test-db-network
+    expose: ["8069", "8070", "8071", "8072"]
+    volumes:
+      - odoo-test-web-data:/var/lib/odoo
+      - ./config:/etc/odoo
+      - ./addons-test:/mnt/extra-addons
+      - ./enterprise:/mnt/enterprise
+    environment:
+      - PASSWORD_FILE=/run/secrets/postgresql_password
+      - VIRTUAL_PORT=8069
+      - VIRTUAL_HOST={{ actual_domain_2 }}
+      - LETSENCRYPT_HOST={{ actual_domain_2 }}
+      - LETSENCRYPT_EMAIL={{ letsencrypt_email_2 }}
+    secrets:
+      - source: postgresql_password
+        mode: 0400
+
+  db-test:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgresql_password
+      - POSTGRES_USER=odoo
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    networks:
+      - odoo-test-db-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+    volumes:
+      - odoo-test-db-data:/var/lib/postgresql/data/pgdata
+    secrets:
+      - source: postgresql_password
+        mode: 0400
+volumes:
+  odoo-test-web-data:
+  odoo-test-db-data:
+
+secrets:
+  postgresql_password:
+    file: odoo_pg_pass
+
+networks:
+  odoo-test-db-network:
+    name: odoo-test-db-network
+  odoo-network:
+    external: true

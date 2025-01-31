@@ -1,0 +1,283 @@
+- name: Setup server
+  hosts: servers
+  tasks:
+    - name: Install necessary packages
+      apt:
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - locales
+          - git
+          - make
+          - ufw
+        update_cache: yes
+
+    - name: Install docker
+      shell: curl https://get.docker.com | bash
+
+    - name: Start Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Generate locale en_US
+      loop:
+        - en_US.UTF-8
+        - C.UTF-8
+      locale_gen:
+        name: "{{ item }}"
+
+    - name: Setting up locales
+      shell:
+        cmd: |
+          echo "LANG=en_US.UTF-8" > /etc/default/locale
+          echo "LC_ALL=en_US.UTF-8" >> /etc/default/locale
+          echo "LANGUAGE=\"en_US:en\"" >> /etc/default/locale
+          source /etc/default/locale
+          update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+
+    - name: Enable UFW and open ports 22, 80, 443
+      loop:
+        - 22
+        - 80
+        - 443
+      ufw:
+        port: "{{ item }}"
+        proto: tcp
+        rule: allow
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+
+    - name: Ensure the directory ~/odoo exists
+      file:
+        path: ~/odoo
+        state: directory
+        mode: '0755'
+
+    - name: Ensure the directory ~/odoo/config exists
+      file:
+        path: ~/odoo/config
+        state: directory
+        mode: '0755'
+
+    - name: Ensure the directory ~/odoo/certs exists
+      file:
+        path: ~/odoo/certs
+        state: directory
+        mode: '0755'
+
+    - name: Ensure the directory ~/odoo/nginx-proxy exists
+      file:
+        path: ~/odoo/nginx-proxy
+        state: directory
+        mode: '0755'
+
+    - name: Ensure the directory ~/odoo/enterprise exists
+      file:
+        path: ~/odoo/enterprise
+        state: directory
+        mode: '0755'
+
+    - name: Ensure the directory ~/odoo-test exists
+      file:
+        path: ~/odoo-test
+        state: directory
+        mode: '0755'
+
+    - name: Ensure the directory ~/odoo-test/config exists
+      file:
+        path: ~/odoo-test/config
+        state: directory
+        mode: '0755'
+
+    - name: Ensure the directory ~/odoo-test/enterprise exists
+      file:
+        path: ~/odoo-test/enterprise
+        state: directory
+        mode: '0755'
+
+    - name: Clone Addons Repo
+      git:
+        clone: true
+        repo:  "https://{{ github_token }}@github.com/{{ addons_repo }}"
+        dest: ~/odoo
+        force: true
+
+    - name: Clone Addons Test Repo
+      git:
+        clone: true
+        repo:  "https://{{ github_token }}@github.com/{{ addons_test_repo }}"
+        dest: ~/odoo-test
+        force: true
+
+    - name: Ensure the directory ~/odoo/addons exists
+      file:
+        path: ~/odoo/addons
+        state: directory
+        mode: '0755'
+
+    - name: Ensure the directory ~/odoo-test/addons-test exists
+      file:
+        path: ~/odoo-test/addons-test
+        state: directory
+        mode: '0755'
+
+    - name: Copy docker-compose.yml file
+      template:
+        src: templates/docker-compose.yml.j2
+        dest: ~/odoo/docker-compose.yml
+        force: false
+        remote_src: no
+
+    - name: Copy second docker-compose.yml file
+      template:
+        src: templates/docker-compose.yml-2.j2
+        dest: ~/odoo-test/docker-compose.yml
+        force: false
+        remote_src: no
+
+    - name: Copy Dockerfile
+      template:
+        src: templates/Dockerfile
+        dest: ~/odoo/Dockerfile
+        force: false
+        remote_src: no
+
+    - name: Copy second Dockerfile
+      template:
+        src: templates/Dockerfile-2
+        dest: ~/odoo-test/Dockerfile
+        force: false
+        remote_src: no
+
+    - name: Copy entrypoint.sh file
+      template:
+        src: templates/entrypoint.sh
+        dest: ~/odoo/entrypoint.sh
+        force: false
+        remote_src: no
+
+    - name: Copy second entrypoint.sh file
+      template:
+        src: templates/entrypoint-2.sh
+        dest: ~/odoo-test/entrypoint.sh
+        force: false
+        remote_src: no
+
+    - name: Copy Secret DB Password file
+      template:
+        src: templates/odoo_pg_pass.j2
+        dest: ~/odoo/odoo_pg_pass
+        remote_src: no
+      no_log: true
+
+    - name: Copy second Secret DB Password file
+      template:
+        src: templates/odoo_pg_pass-2.j2
+        dest: ~/odoo-test/odoo_pg_pass
+        remote_src: no
+      no_log: true
+
+    - name: Copy odoo.conf file
+      template:
+        src: templates/odoo.conf.j2
+        dest: ~/odoo/config/odoo.conf
+        force: false
+        remote_src: no
+      no_log: true
+
+    - name: Copy second odoo.conf file
+      template:
+        src: templates/odoo.conf-2.j2
+        dest: ~/odoo-test/config/odoo.conf
+        force: false
+        remote_src: no
+      no_log: true
+
+    - name: Copy nginx.conf proxy file
+      template:
+        src: nginx-proxy/nginx.conf
+        dest: ~/odoo/nginx-proxy
+        force: false
+        remote_src: no
+
+    - name: Copy cors.conf file
+      template:
+        src: nginx-proxy/cors.conf
+        dest: ~/odoo/nginx-proxy
+        force: false
+        remote_src: no
+
+    - name: Copy Enterprise package
+      copy:
+        src: enterprise/odoo_18.0+e.latest_all.deb
+        dest: ~/odoo/enterprise
+        force: false
+
+    - name: Copy Enterprise package to second dir
+      copy:
+        src: enterprise/odoo_18.0+e.latest_all.deb
+        dest: ~/odoo-test/enterprise
+        force: false
+
+    - name: Set certs directory permissions  
+      file:  
+        path: ~/odoo/certs  
+        mode: "0700"
+
+    - name: Set nginx-proxy conf permissions
+      file:
+        path: ~/odoo/nginx-proxy/
+        mode: "0644"
+        recurse: yes
+
+    - name: Set entrypoint permissions
+      file:
+        path: ~/odoo/entrypoint.sh
+        mode: "0755"
+
+    - name: Ensure ACME challenge directory exists
+      file:
+        path: ~/odoo/acme-challenge
+        state: directory
+        mode: '0755'
+
+    - name: Set second entrypoint permissions
+      file:
+        path: ~/odoo-test/entrypoint.sh
+        mode: "0755"
+
+    - name: Start docker containers
+      shell:
+        cmd: |
+          cd ~/odoo
+          docker compose up -d
+
+    - name: Start second docker containers
+      shell:
+        cmd: |
+          cd ~/odoo-test
+          docker compose up -d
+
+    - name: Check if letsencrypt container is running
+      community.docker.docker_container_info:
+        name: odoo-letsencrypt-1
+      register: letsencrypt_container
+      failed_when: 
+        - not letsencrypt_container.exists
+        - letsencrypt_container.container.State.Status != 'running'
+
+    - name: Wait for certificate generation  
+      wait_for:  
+        path: ~/odoo/certs/{{ actual_domain_2 }}/fullchain.pem  
+        timeout: 300
+
+    - name: Wait for certificate generation  
+      wait_for:  
+        path: ~/odoo/certs/{{ actual_domain }}/fullchain.pem  
+        timeout: 300
