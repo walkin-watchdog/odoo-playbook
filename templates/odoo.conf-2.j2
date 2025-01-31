@@ -1,0 +1,10 @@
+[options]
+admin_passwd = {{ odoo_db_master_pass }}
+db_host = db-test
+db_port = 5432
+db_user = odoo
+db_password = {{ pg_db_pass }}
+addons_path = /mnt/extra-addons,/mnt/enterprise
+proxy_mode = True
+x_sendfile = False
+xmlrpc_interface = 0.0.0.0
