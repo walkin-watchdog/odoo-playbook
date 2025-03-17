@@ -105,19 +105,19 @@
       git:
         clone: true
         repo:  "https://{{ github_token }}@github.com/{{ addons_repo }}"
-        dest: ~/odoo
+        dest: ~/odoo/extra-addons
         force: true
 
     - name: Clone Addons Test Repo
       git:
         clone: true
         repo:  "https://{{ github_token }}@github.com/{{ addons_test_repo }}"
-        dest: ~/odoo-test
+        dest: ~/odoo-test/addons-test
         force: true
 
     - name: Ensure the directory ~/odoo/addons exists
       file:
-        path: ~/odoo/addons
+        path: ~/odoo/extra-addons
         state: directory
         mode: '0755'
 

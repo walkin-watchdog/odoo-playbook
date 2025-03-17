@@ -2,7 +2,7 @@ actual_domain: yourdomain.com
 letsencrypt_email: mail@yourdomain.com
 actual_domain_2: yourdomain2.com
 letsencrypt_email_2: mail@yourdomain2.com
-addons_repo: github-user/addons.git
+addons_repo: github-user/extra-addons.git
 addons_test_repo: github-user/addons-test.git
 odoo_db_master_pass: odoo_master_pass_db
 pg_db_pass: postgresdbpass

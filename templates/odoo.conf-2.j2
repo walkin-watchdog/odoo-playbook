@@ -8,3 +8,11 @@ addons_path = /mnt/extra-addons,/mnt/enterprise
 proxy_mode = True
 x_sendfile = False
 xmlrpc_interface = 0.0.0.0
+
+[advanced]
+limit_memory_hard = 2684354560   # 2.5GB (Stops processes above this limit)
+limit_memory_soft = 2147483648   # 2GB (Triggers garbage collection)
+limit_request = 8192             # Limits requests per worker
+limit_time_cpu = 300             # Limits CPU time per request (in seconds)
+limit_time_real = 600            # Total time before a request is killed
+limit_time_real_cron = 1200      # Total time before a cron job is killed

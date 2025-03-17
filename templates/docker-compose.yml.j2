@@ -16,7 +16,7 @@ services:
     volumes:
       - odoo-web-data:/var/lib/odoo
       - ./config:/etc/odoo
-      - ./addons:/mnt/extra-addons
+      - ./extra-addons:/mnt/extra-addons
       - ./enterprise:/mnt/enterprise
     environment:
       - PASSWORD_FILE=/run/secrets/postgresql_password
